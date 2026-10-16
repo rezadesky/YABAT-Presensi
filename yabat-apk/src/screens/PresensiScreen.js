@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   Alert,
   Animated
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { useAuth } from '../context/AuthContext';
@@ -82,10 +83,6 @@ export default function PresensiScreen() {
     }
   };
 
-  useEffect(() => {
-    fetchStatus();
-  }, []);
-
   // Native GPS Check via expo-location
   const checkCurrentLocation = async () => {
     setCheckingGps(true);
@@ -104,7 +101,6 @@ export default function PresensiScreen() {
       const isEnabled = await Location.hasServicesEnabledAsync();
       if (!isEnabled) {
         try {
-          // Memaksa Android memunculkan popup dialog sistem: "To continue, turn on device location"
           await Location.enableNetworkProviderAsync();
         } catch (provErr) {
           Alert.alert(
@@ -127,7 +123,6 @@ export default function PresensiScreen() {
           timeInterval: 1000,
         });
       } catch (highErr) {
-        // Fallback jika GPS outdoor lambat, coba last known atau balanced
         position = await Location.getLastKnownPositionAsync() || await Location.getCurrentPositionAsync({
           accuracy: Location.Accuracy.Balanced,
         });
@@ -153,10 +148,18 @@ export default function PresensiScreen() {
       setUserCoords({ latitude, longitude, isMocked });
       setAccuracy(posAccuracy ? Math.round(posAccuracy) : 10);
 
-      // 4. Hitung Jarak ke Unit Institusi
-      const instLat = parseFloat(institution?.latitude || employee?.institution?.latitude || 3.4883);
-      const instLng = parseFloat(institution?.longitude || employee?.institution?.longitude || 97.8085);
-      const maxRadius = parseInt(institution?.radius_meters || employee?.institution?.radius_meters || 100, 10);
+      // 4. Hitung Jarak ke Unit Institusi Pegawai
+      const instLat = parseFloat(institution?.latitude ?? employee?.institution?.latitude);
+      const instLng = parseFloat(institution?.longitude ?? employee?.institution?.longitude);
+      const maxRadius = parseInt(institution?.radius_meters ?? employee?.institution?.radius_meters ?? 100, 10);
+
+      if (isNaN(instLat) || isNaN(instLng)) {
+        setGpsError('Titik koordinat unit kerja Anda belum diatur oleh Administrator. Harap hubungi Admin.');
+        setIsWithinRadius(false);
+        setDistance(null);
+        setCheckingGps(false);
+        return;
+      }
 
       const calculatedDistance = calculateHaversineDistance(latitude, longitude, instLat, instLng);
       setDistance(calculatedDistance);
@@ -168,22 +171,22 @@ export default function PresensiScreen() {
       }
     } catch (err) {
       console.log('GPS error:', err);
-      // Jika error karena permission/service, berikan opsi enable
       try {
         await Location.enableNetworkProviderAsync();
       } catch (e) {}
-      setGpsError('Gagal mendeteksi sinyal GPS. Silakan pastikan izin Lokasi sudah "Izinkan Setiap Saat / Saat Aplikasi Digunakan".');
+      setGpsError('Gagal mendeteksi sinyal GPS. Silakan pastikan izin Lokasi sudah diaktifkan.');
     } finally {
       setCheckingGps(false);
     }
   };
 
-  // Jalankan GPS saat layar pertama dibuka jika data institusi sudah siap
-  useEffect(() => {
-    if (institution || employee?.institution) {
+  // Selalu perbarui status dan cek lokasi otomatis tiap kali tab Presensi dibuka
+  useFocusEffect(
+    useCallback(() => {
+      fetchStatus();
       checkCurrentLocation();
-    }
-  }, [institution]);
+    }, [institution?.id])
+  );
 
   // Handle Presensi Masuk
   const handleCheckIn = async () => {
@@ -301,291 +304,133 @@ export default function PresensiScreen() {
       )}
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* B. JAM DIGITAL & JADWAL KERJA */}
-        <View style={styles.card}>
-          <View style={styles.cardHeaderRow}>
-            <Text style={styles.cardLabel}>JAM DIGITAL WAKTU NYATA</Text>
-            <View style={styles.activeShiftBadge}>
-              <View style={styles.activeShiftDot} />
-              <Text style={styles.activeShiftText}>Jam Kerja Aktif</Text>
-            </View>
-          </View>
-
-          <View style={styles.clockBox}>
-            <Text style={styles.clockText}>{currentTime || '--:--:--'}</Text>
-            <Text style={styles.clockSubtext}>Waktu Indonesia Barat (WIB)</Text>
-          </View>
-
-          <View style={styles.shiftGrid}>
-            <View style={styles.shiftBox}>
-              <View style={styles.shiftBoxTitleRow}>
-                <View style={[styles.dotCircle, { backgroundColor: '#3b82f6' }]} />
-                <Text style={styles.shiftBoxLabel}>Jam Masuk</Text>
-              </View>
-              <Text style={styles.shiftBoxTime}>07:30 WIB</Text>
-              <Text style={styles.shiftBoxSub}>Toleransi s/d 07:45</Text>
-            </View>
-            <View style={styles.shiftBox}>
-              <View style={styles.shiftBoxTitleRow}>
-                <View style={[styles.dotCircle, { backgroundColor: '#f59e0b' }]} />
-                <Text style={styles.shiftBoxLabel}>Jam Pulang</Text>
-              </View>
-              <Text style={styles.shiftBoxTime}>16:00 WIB</Text>
-              <Text style={styles.shiftBoxSub}>Senin - Kamis & Sabtu</Text>
-            </View>
-          </View>
-        </View>
-
-        {/* C. STATUS PRESENSI HARI INI */}
-        <View style={styles.card}>
-          <View style={styles.cardHeaderRow}>
-            <Text style={styles.cardLabel}>STATUS KEHADIRAN HARI INI</Text>
-            <View style={[styles.summaryBadge, todayAttendance ? styles.summaryBadgePresent : styles.summaryBadgeEmpty]}>
-              <Text style={[styles.summaryBadgeText, todayAttendance ? styles.summaryBadgeTextPresent : styles.summaryBadgeTextEmpty]}>
-                {todayAttendance ? `${todayAttendance.status?.toUpperCase()} (Tercatat)` : 'Belum Presensi'}
+        {/* 1. STATUS LOKASI GPS (SEDERHANA & JELAS) */}
+        <View style={styles.simpleStatusCard}>
+          <View style={styles.statusHeader}>
+            <Ionicons 
+              name={checkingGps ? 'sync' : userCoords ? (isWithinRadius ? 'checkmark-circle' : 'close-circle') : 'location'} 
+              size={30} 
+              color={checkingGps ? '#3b82f6' : userCoords ? (isWithinRadius ? '#10b981' : '#ef4444') : '#f59e0b'} 
+            />
+            <View style={{ flex: 1, marginLeft: 12 }}>
+              <Text style={styles.statusTitle}>
+                {checkingGps 
+                  ? 'Mencari Posisi Anda...' 
+                  : userCoords 
+                    ? (isWithinRadius ? 'Lokasi Valid (Di Lokasi Kerja)' : 'Di Luar Lokasi Kampus/Sekolah') 
+                    : 'Menunggu Sinyal Lokasi'}
+              </Text>
+              <Text style={styles.statusSubtitle}>
+                {institution?.name || employee?.institution?.name || 'Unit Yayasan'}
               </Text>
             </View>
-          </View>
-
-          <View style={styles.metricGrid}>
-            <View style={styles.metricCard}>
-              <View style={styles.metricCardHeader}>
-                <Text style={styles.metricLabel}>Presensi Masuk</Text>
-                <View style={[styles.statusDot, hasCheckedIn ? styles.statusDotActive : styles.statusDotInactive]} />
-              </View>
-              <Text style={[styles.metricTime, hasCheckedIn ? styles.metricTimeActive : styles.metricTimeInactive]}>
-                {todayAttendance?.time_in ? todayAttendance.time_in.substring(0, 5) + ' WIB' : '--:--'}
-              </Text>
-              <Text style={styles.metricDesc}>
-                {hasCheckedIn ? 'Terverifikasi lokasi GPS' : 'Menunggu verifikasi GPS'}
-              </Text>
-            </View>
-
-            <View style={styles.metricCard}>
-              <View style={styles.metricCardHeader}>
-                <Text style={styles.metricLabel}>Presensi Pulang</Text>
-                <View style={[styles.statusDot, hasCheckedOut ? styles.statusDotActive : styles.statusDotInactive]} />
-              </View>
-              <Text style={[styles.metricTime, hasCheckedOut ? styles.metricTimeActive : styles.metricTimeInactive]}>
-                {todayAttendance?.time_out ? todayAttendance.time_out.substring(0, 5) + ' WIB' : '--:--'}
-              </Text>
-              <Text style={styles.metricDesc}>
-                {hasCheckedOut ? 'Telah presensi pulang' : 'Tersedia jam pulang'}
-              </Text>
-            </View>
-          </View>
-        </View>
-
-        {/* D. SENSOR LOKASI GPS (NATIVE) */}
-        <View style={styles.card}>
-          <View style={styles.cardHeaderRow}>
-            <View style={styles.gpsTitleRow}>
-              <View style={styles.gpsIconContainer}>
-                <Ionicons name="location" size={16} color="#2563eb" />
-              </View>
-              <View>
-                <Text style={styles.gpsTitle}>Sensor Lokasi GPS</Text>
-                <Text style={styles.gpsSubtitle}>Native Android Geolocation</Text>
-              </View>
-            </View>
-
-            <View
-              style={[
-                styles.gpsBadge,
-                userCoords ? (isWithinRadius ? styles.gpsBadgeGood : styles.gpsBadgeWarning) : styles.gpsBadgeDefault,
-              ]}
+            <TouchableOpacity 
+              onPress={checkCurrentLocation} 
+              disabled={checkingGps}
+              style={styles.refreshIconBtn}
             >
-              <Text
-                style={[
-                  styles.gpsBadgeText,
-                  userCoords ? (isWithinRadius ? styles.gpsBadgeTextGood : styles.gpsBadgeTextWarning) : styles.gpsBadgeTextDefault,
-                ]}
-              >
-                {checkingGps ? 'Memindai...' : userCoords ? (isWithinRadius ? 'Sinyal Terkunci' : 'Di Luar Radius') : 'Belum Diperiksa'}
-              </Text>
-            </View>
+              <Ionicons name="refresh" size={20} color="#2563eb" />
+            </TouchableOpacity>
           </View>
 
-          {/* Koordinat & Akurasi Display */}
-          <View style={styles.coordsBox}>
-            <View style={styles.coordRow}>
-              <Text style={styles.coordLabel}>Latitude:</Text>
-              <Text style={styles.coordValue}>{userCoords ? userCoords.latitude.toFixed(6) : '-'}</Text>
-            </View>
-            <View style={styles.coordRow}>
-              <Text style={styles.coordLabel}>Longitude:</Text>
-              <Text style={styles.coordValue}>{userCoords ? userCoords.longitude.toFixed(6) : '-'}</Text>
-            </View>
-            <View style={[styles.coordRow, { borderTopWidth: 1, borderTopColor: '#e2e8f0', paddingTop: 6, marginTop: 4 }]}>
-              <Text style={styles.coordLabel}>Akurasi Sinyal GPS:</Text>
-              <Text style={styles.coordValue}>
-                {accuracy ? `± ${accuracy} meter (${accuracy <= 25 ? 'Sangat Akurat' : 'Cukup'})` : '-'}
-              </Text>
-            </View>
+          {/* Indikator Sederhana Jarak */}
+          <View style={[styles.distancePill, isWithinRadius ? styles.distancePillValid : styles.distancePillInvalid]}>
+            <Text style={[styles.distancePillText, isWithinRadius ? styles.distancePillTextValid : styles.distancePillTextInvalid]}>
+              {distance !== null ? `Jarak Anda: ${distance} meter (Batas: ${maxRadius}m)` : 'Sedang mendeteksi jarak...'}
+            </Text>
           </View>
 
-          {/* Error Notice Box */}
           {gpsError && (
-            <View style={styles.errorBox}>
-              <Ionicons name="alert-circle" size={18} color="#e11d48" style={{ marginRight: 6 }} />
-              <View style={{ flex: 1 }}>
-                <Text style={styles.errorTitle}>Gagal Mengambil Lokasi</Text>
-                <Text style={styles.errorText}>{gpsError}</Text>
-              </View>
-            </View>
-          )}
-
-          {/* Tombol Periksa Titik GPS */}
-          <TouchableOpacity
-            style={styles.refreshGpsButton}
-            onPress={checkCurrentLocation}
-            disabled={checkingGps}
-            activeOpacity={0.85}
-          >
-            {checkingGps ? (
-              <ActivityIndicator color="#ffffff" size="small" />
-            ) : (
-              <>
-                <Ionicons name="refresh" size={16} color="#ffffff" />
-                <Text style={styles.refreshGpsButtonText}>Periksa / Perbarui Titik GPS</Text>
-              </>
-            )}
-          </TouchableOpacity>
-        </View>
-
-        {/* E. VALIDASI AREA PRESENSI (GEOFENCING) */}
-        <View style={styles.card}>
-          <View style={styles.cardHeaderRow}>
-            <View>
-              <Text style={styles.cardLabel}>VERIFIKASI AREA KERJA</Text>
-              <Text style={styles.institutionName}>
-                {institution?.name || employee?.institution?.name || 'Unit Institusi Yayasan'}
-              </Text>
-            </View>
-
-            <View
-              style={[
-                styles.radiusBadge,
-                userCoords
-                  ? isWithinRadius
-                    ? styles.radiusBadgeValid
-                    : styles.radiusBadgeInvalid
-                  : styles.radiusBadgeWait,
-              ]}
-            >
-              <Text
-                style={[
-                  styles.radiusBadgeText,
-                  userCoords
-                    ? isWithinRadius
-                      ? styles.radiusBadgeTextValid
-                      : styles.radiusBadgeTextInvalid
-                    : styles.radiusBadgeTextWait,
-                ]}
-              >
-                {userCoords ? (isWithinRadius ? 'Dalam Radius' : 'Di Luar Area') : 'Menunggu GPS'}
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.distanceGrid}>
-            <View style={styles.distanceBox}>
-              <Text style={styles.distanceBoxLabel}>Jarak ke Unit Kerja</Text>
-              <Text style={styles.distanceBoxValue}>
-                {distance !== null ? `${distance} Meter` : '-'}
-              </Text>
-              <Text style={styles.distanceBoxSub}>Dihitung otomatis (Haversine)</Text>
-            </View>
-
-            <View style={styles.distanceBox}>
-              <Text style={styles.distanceBoxLabel}>Batas Maksimal Radius</Text>
-              <Text style={[styles.distanceBoxValue, { color: '#2563eb' }]}>
-                {maxRadius} Meter
-              </Text>
-              <Text style={styles.distanceBoxSub}>Kebijakan resmi yayasan</Text>
-            </View>
-          </View>
-
-          {/* Indikator Informatif Sisa Jarak */}
-          {userCoords && (
-            <View
-              style={[
-                styles.guidanceBox,
-                isWithinRadius ? styles.guidanceBoxValid : styles.guidanceBoxInvalid,
-              ]}
-            >
-              <Ionicons
-                name={isWithinRadius ? 'shield-checkmark' : 'warning'}
-                size={18}
-                color={isWithinRadius ? '#059669' : '#dc2626'}
-                style={{ marginRight: 8 }}
-              />
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.guidanceTitle, { color: isWithinRadius ? '#065f46' : '#991b1b' }]}>
-                  {isWithinRadius ? 'Lokasi Valid untuk Presensi' : 'Posisi Terlalu Jauh'}
-                </Text>
-                <Text style={[styles.guidanceText, { color: isWithinRadius ? '#047857' : '#b91c1c' }]}>
-                  {isWithinRadius
-                    ? 'Anda terverifikasi berada di dalam wilayah resmi kampus / sekolah.'
-                    : `Anda berada ${distance}m dari unit (batas ${maxRadius}m). Dekatilah lokasi unit kerja.`}
-                </Text>
-              </View>
+            <View style={styles.errorNotice}>
+              <Ionicons name="alert-circle" size={18} color="#dc2626" />
+              <Text style={styles.errorNoticeText}>{gpsError}</Text>
             </View>
           )}
         </View>
 
-        {/* F. TOMBOL PRESENSI LANGSUNG */}
-        <View style={styles.actionSection}>
-          <View style={styles.actionButtonsRow}>
-            {/* Tombol Masuk */}
+        {/* 2. TOMBOL ABSEN RAKSASA (SATU SENTUHAN - COCOK UNTUK ORANG TUA) */}
+        <View style={styles.bigButtonSection}>
+          {!hasCheckedIn ? (
+            /* BELUM ABSEN MASUK -> TOMBOL HIJAU BESAR */
             <TouchableOpacity
               style={[
-                styles.actionBtn,
-                !hasCheckedIn && isWithinRadius ? styles.actionBtnActiveIn : styles.actionBtnDisabled,
+                styles.hugeButton,
+                isWithinRadius ? styles.hugeButtonIn : styles.hugeButtonDisabled,
               ]}
-              disabled={hasCheckedIn || !isWithinRadius || submittingIn}
               onPress={handleCheckIn}
-              activeOpacity={0.85}
+              disabled={!isWithinRadius || submittingIn}
+              activeOpacity={0.8}
             >
               {submittingIn ? (
-                <ActivityIndicator color="#ffffff" size="small" />
+                <ActivityIndicator size="large" color="#ffffff" />
               ) : (
                 <>
-                  <Ionicons name="log-in-outline" size={20} color={!hasCheckedIn && isWithinRadius ? '#ffffff' : '#94a3b8'} />
-                  <Text style={[styles.actionBtnText, !hasCheckedIn && isWithinRadius ? styles.actionBtnTextActive : styles.actionBtnTextDisabled]}>
-                    Presensi Masuk
-                  </Text>
-                  <Text style={styles.actionBtnSub}>
-                    {hasCheckedIn ? 'Sudah presensi masuk' : isWithinRadius ? 'Tekan untuk absen' : 'Perlu periksa lokasi'}
+                  <View style={styles.hugeIconCircleIn}>
+                    <Ionicons name="finger-print" size={54} color="#ffffff" />
+                  </View>
+                  <Text style={styles.hugeButtonTitle}>TEKAN UNTUK ABSEN MASUK</Text>
+                  <Text style={styles.hugeButtonSubtitle}>
+                    {isWithinRadius 
+                      ? 'Posisi sudah sesuai, tekan tombol ini' 
+                      : 'Mendekatlah ke lokasi sekolah/kampus'}
                   </Text>
                 </>
               )}
             </TouchableOpacity>
-
-            {/* Tombol Pulang */}
+          ) : !hasCheckedOut ? (
+            /* SUDAH MASUK, BELUM PULANG -> TOMBOL ORANYE BESAR */
             <TouchableOpacity
               style={[
-                styles.actionBtn,
-                hasCheckedIn && !hasCheckedOut && isWithinRadius ? styles.actionBtnActiveOut : styles.actionBtnDisabled,
+                styles.hugeButton,
+                isWithinRadius ? styles.hugeButtonOut : styles.hugeButtonDisabled,
               ]}
-              disabled={!hasCheckedIn || hasCheckedOut || !isWithinRadius || submittingOut}
               onPress={handleCheckOut}
-              activeOpacity={0.85}
+              disabled={!isWithinRadius || submittingOut}
+              activeOpacity={0.8}
             >
               {submittingOut ? (
-                <ActivityIndicator color="#ffffff" size="small" />
+                <ActivityIndicator size="large" color="#ffffff" />
               ) : (
                 <>
-                  <Ionicons name="log-out-outline" size={20} color={hasCheckedIn && !hasCheckedOut && isWithinRadius ? '#ffffff' : '#94a3b8'} />
-                  <Text style={[styles.actionBtnText, hasCheckedIn && !hasCheckedOut && isWithinRadius ? styles.actionBtnTextActive : styles.actionBtnTextDisabled]}>
-                    Presensi Pulang
-                  </Text>
-                  <Text style={styles.actionBtnSub}>
-                    {hasCheckedOut ? 'Sudah presensi pulang' : hasCheckedIn ? (isWithinRadius ? 'Tekan untuk pulang' : 'Di luar radius') : 'Menunggu absen masuk'}
+                  <View style={styles.hugeIconCircleOut}>
+                    <Ionicons name="log-out" size={54} color="#ffffff" />
+                  </View>
+                  <Text style={styles.hugeButtonTitle}>TEKAN UNTUK ABSEN PULANG</Text>
+                  <Text style={styles.hugeButtonSubtitle}>
+                    {isWithinRadius 
+                      ? 'Tekan tombol ini saat jam kerja selesai' 
+                      : 'Mendekatlah ke lokasi sekolah/kampus'}
                   </Text>
                 </>
               )}
             </TouchableOpacity>
+          ) : (
+            /* SUDAH MASUK DAN SUDAH PULANG -> KARTU SELESAI */
+            <View style={styles.completedCard}>
+              <Ionicons name="checkmark-done-circle" size={64} color="#10b981" />
+              <Text style={styles.completedTitle}>Absensi Hari Ini Selesai!</Text>
+              <Text style={styles.completedSub}>Terima kasih atas dedikasi dan kerja keras Anda hari ini.</Text>
+            </View>
+          )}
+        </View>
+
+        {/* 3. RINGKASAN CATATAN HARI INI */}
+        <View style={styles.simpleRecordCard}>
+          <Text style={styles.recordHeader}>CATATAN ABSEN HARI INI</Text>
+          <View style={styles.recordRow}>
+            <View style={styles.recordCol}>
+              <Text style={styles.recordLabel}>Jam Masuk</Text>
+              <Text style={styles.recordValue}>
+                {todayAttendance?.time_in ? todayAttendance.time_in.substring(0, 5) + ' WIB' : 'Belum Absen'}
+              </Text>
+            </View>
+            <View style={styles.recordDivider} />
+            <View style={styles.recordCol}>
+              <Text style={styles.recordLabel}>Jam Pulang</Text>
+              <Text style={styles.recordValue}>
+                {todayAttendance?.time_out ? todayAttendance.time_out.substring(0, 5) + ' WIB' : 'Belum Absen'}
+              </Text>
+            </View>
           </View>
         </View>
       </ScrollView>
@@ -1073,5 +918,201 @@ const styles = StyleSheet.create({
     color: '#cbd5e1',
     fontSize: 10.5,
     marginTop: 1,
+  },
+
+  /* --- STYLES RAMAH ORANG TUA (SUPER SIMPLE) --- */
+  simpleStatusCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 20,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    shadowColor: '#64748b',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  statusHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  statusTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#0f172a',
+  },
+  statusSubtitle: {
+    fontSize: 12,
+    color: '#64748b',
+    marginTop: 1,
+  },
+  refreshIconBtn: {
+    padding: 8,
+    borderRadius: 12,
+    backgroundColor: '#eff6ff',
+  },
+  distancePill: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  distancePillValid: {
+    backgroundColor: '#ecfdf5',
+  },
+  distancePillInvalid: {
+    backgroundColor: '#fef2f2',
+  },
+  distancePillText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  distancePillTextValid: {
+    color: '#047857',
+  },
+  distancePillTextInvalid: {
+    color: '#b91c1c',
+  },
+  errorNotice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff1f2',
+    padding: 10,
+    borderRadius: 10,
+    marginTop: 10,
+    gap: 8,
+  },
+  errorNoticeText: {
+    fontSize: 11,
+    color: '#b91c1c',
+    flex: 1,
+  },
+
+  /* Tombol Absen Raksasa Satu Sentuhan */
+  bigButtonSection: {
+    marginVertical: 10,
+    alignItems: 'center',
+  },
+  hugeButton: {
+    width: '100%',
+    paddingVertical: 28,
+    paddingHorizontal: 16,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+    elevation: 6,
+  },
+  hugeButtonIn: {
+    backgroundColor: '#059669', // Hijau Tegas
+  },
+  hugeButtonOut: {
+    backgroundColor: '#d97706', // Oranye Tegas
+  },
+  hugeButtonDisabled: {
+    backgroundColor: '#94a3b8',
+    opacity: 0.7,
+  },
+  hugeIconCircleIn: {
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  hugeIconCircleOut: {
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  hugeButtonTitle: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: '#ffffff',
+    letterSpacing: 0.5,
+    textAlign: 'center',
+  },
+  hugeButtonSubtitle: {
+    fontSize: 13,
+    color: 'rgba(255, 255, 255, 0.9)',
+    marginTop: 4,
+    textAlign: 'center',
+    fontWeight: '500',
+  },
+
+  completedCard: {
+    width: '100%',
+    backgroundColor: '#ffffff',
+    borderRadius: 24,
+    padding: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#a7f3d0',
+  },
+  completedTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#065f46',
+    marginTop: 10,
+  },
+  completedSub: {
+    fontSize: 12,
+    color: '#64748b',
+    textAlign: 'center',
+    marginTop: 4,
+  },
+
+  /* Catatan Absen Hari Ini */
+  simpleRecordCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 18,
+    padding: 16,
+    marginTop: 14,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  recordHeader: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#94a3b8',
+    letterSpacing: 0.8,
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  recordRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  recordCol: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  recordLabel: {
+    fontSize: 11,
+    color: '#64748b',
+    marginBottom: 2,
+  },
+  recordValue: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#0f172a',
+  },
+  recordDivider: {
+    width: 1,
+    height: 30,
+    backgroundColor: '#e2e8f0',
   },
 });

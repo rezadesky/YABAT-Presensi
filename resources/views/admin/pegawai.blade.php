@@ -199,17 +199,29 @@
                         <input type="text" name="phone" placeholder="0812-..." class="w-full px-3 py-2 border rounded-lg">
                     </div>
                 </div>
-                <div>
-                    <label class="block font-semibold text-slate-700 mb-1">Email</label>
-                    <input type="email" name="email" placeholder="email@yabat.sch.id" class="w-full px-3 py-2 border rounded-lg">
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block font-semibold text-slate-700 mb-1">Email Login</label>
+                        <input type="email" name="email" placeholder="email@yabat.sch.id (opsional)" class="w-full px-3 py-2 border rounded-lg">
+                        <span class="text-[10px] text-slate-400 mt-0.5 block">Jika kosong, dibuat otomatis dari NIP.</span>
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-slate-700 mb-1">Kata Sandi Akun Mobile</label>
+                        <input type="password" name="password" placeholder="Minimal 6 karakter (opsional)" class="w-full px-3 py-2 border rounded-lg">
+                        <span class="text-[10px] text-slate-400 mt-0.5 block">Jika kosong, default menggunakan NIP/NIDN.</span>
+                    </div>
                 </div>
                 <div>
                     <label class="block font-semibold text-slate-700 mb-1">Alamat Tinggal</label>
                     <textarea name="address" rows="2" placeholder="Alamat domisili..." class="w-full px-3 py-2 border rounded-lg"></textarea>
                 </div>
+                <div class="p-2.5 bg-blue-50/70 border border-blue-100 rounded-lg text-[11px] text-blue-700 flex items-center gap-2">
+                    <svg class="w-4 h-4 flex-shrink-0 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    <span>Akun login aplikasi mobile langsung aktif otomatis setelah disimpan. Pegawai bisa login menggunakan NIP atau Email.</span>
+                </div>
                 <div class="flex justify-end gap-2 pt-3 border-t">
                     <button type="button" @click="openCreateModal = false" class="px-4 py-2 border rounded-lg text-slate-600 hover:bg-slate-50">Batal</button>
-                    <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold">Simpan Pegawai</button>
+                    <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold">Simpan Pegawai & Akun</button>
                 </div>
             </form>
         </div>
@@ -270,9 +282,15 @@
                         <input type="text" name="phone" x-model="editData.phone" class="w-full px-3 py-2 border rounded-lg">
                     </div>
                 </div>
-                <div>
-                    <label class="block font-semibold text-slate-700 mb-1">Email</label>
-                    <input type="email" name="email" x-model="editData.email" class="w-full px-3 py-2 border rounded-lg">
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block font-semibold text-slate-700 mb-1">Email Login</label>
+                        <input type="email" name="email" x-model="editData.email" class="w-full px-3 py-2 border rounded-lg">
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-slate-700 mb-1">Ganti Kata Sandi (Opsional)</label>
+                        <input type="password" name="password" placeholder="Kosongkan jika tidak diubah" class="w-full px-3 py-2 border rounded-lg">
+                    </div>
                 </div>
                 <div>
                     <label class="block font-semibold text-slate-700 mb-1">Alamat Tinggal</label>

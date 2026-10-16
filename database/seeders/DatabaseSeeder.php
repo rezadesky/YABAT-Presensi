@@ -77,6 +77,23 @@ class DatabaseSeeder extends Seeder
             ]
         );
 
+        $smp = \App\Models\Institution::firstOrCreate(
+            ['code' => 'SMP-THW'],
+            [
+                'name' => 'SMP Thawalib',
+                'category' => 'Sekolah Menengah Pertama',
+                'description' => 'Sekolah Menengah Pertama Islam Terpadu naungan Yayasan Anak Bangsa.',
+                'latitude' => 3.48900000,
+                'longitude' => 97.80950000,
+                'radius_meters' => 100,
+                'address' => 'Pulonas Baru, Kec. Lawe Bulan, Kabupaten Aceh Tenggara, Aceh',
+                'phone' => '0821-7734-1189',
+                'email' => 'smp@thawalib.sch.id',
+                'head_name' => 'Kepala Sekolah SMP Thawalib',
+                'is_active' => true,
+            ]
+        );
+
         // 3. Jadwal Kerja
         \App\Models\WorkSchedule::firstOrCreate(
             ['name' => 'Jadwal Reguler STKIP', 'institution_id' => $stkip->id],
@@ -106,6 +123,17 @@ class DatabaseSeeder extends Seeder
                 'day_of_week' => 'Senin - Jumat',
                 'time_in' => '07:30:00',
                 'time_out' => '16:15:00',
+                'late_tolerance_minutes' => 15,
+                'is_active' => true,
+            ]
+        );
+
+        \App\Models\WorkSchedule::firstOrCreate(
+            ['name' => 'Jadwal Reguler SMP Thawalib', 'institution_id' => $smp->id],
+            [
+                'day_of_week' => 'Senin - Sabtu',
+                'time_in' => '07:30:00',
+                'time_out' => '15:00:00',
                 'late_tolerance_minutes' => 15,
                 'is_active' => true,
             ]

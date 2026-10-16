@@ -51,7 +51,8 @@ export function AuthProvider({ children }) {
       }
       return { success: false, message: response.data.message || 'Login gagal' };
     } catch (err) {
-      const msg = err.response?.data?.message || 'Gagal terhubung ke server. Periksa koneksi internet.';
+      console.log('Login error details:', err.response?.status, err.response?.data, err.message);
+      const msg = err.response?.data?.message || err.message || 'Gagal terhubung ke server. Periksa koneksi internet.';
       return { success: false, message: msg };
     }
   };

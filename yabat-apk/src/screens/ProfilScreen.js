@@ -6,6 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
+  Platform,
   ActivityIndicator
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -19,7 +20,26 @@ export default function ProfilScreen() {
 
   const initials = getInitials(employee?.name || user?.name);
 
+  const performLogout = async () => {
+    setLoggingOut(true);
+    try {
+      await logout();
+    } finally {
+      setLoggingOut(false);
+    }
+  };
+
   const handleLogout = () => {
+    // Pada browser web, gunakan window.confirm standar browser
+    if (Platform.OS === 'web') {
+      const confirmed = window.confirm('Apakah Anda yakin ingin keluar dari akun ini?');
+      if (confirmed) {
+        performLogout();
+      }
+      return;
+    }
+
+    // Pada HP Android/iOS native
     Alert.alert(
       'Konfirmasi Keluar',
       'Apakah Anda yakin ingin keluar dari akun presensi ini?',
@@ -28,11 +48,7 @@ export default function ProfilScreen() {
         {
           text: 'Keluar',
           style: 'destructive',
-          onPress: async () => {
-            setLoggingOut(true);
-            await logout();
-            setLoggingOut(false);
-          },
+          onPress: performLogout,
         },
       ]
     );
@@ -156,7 +172,7 @@ export default function ProfilScreen() {
           ) : (
             <>
               <Ionicons name="log-out-outline" size={18} color="#e11d48" />
-              <Text style={styles.logoutButtonText}>Keluar dari Aplikasi</Text>
+              <Text style={styles.logoutButtonText}>Keluar Akun</Text>
             </>
           )}
         </TouchableOpacity>

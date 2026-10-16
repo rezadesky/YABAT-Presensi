@@ -49,80 +49,22 @@
         </div>
 
         <!-- Geofencing Settings & Unified GPS Area -->
-        <div class="bg-white p-5 rounded-xl border border-slate-200/80 space-y-6">
+        <div class="bg-white p-5 rounded-xl border border-slate-200/80 space-y-5">
             <div>
-                <h2 class="text-sm font-semibold text-slate-900">Kebijakan Lokasi (Geofencing GPS Wilayah)</h2>
-                <p class="text-xs text-slate-400 mt-0.5">Penetapan satu titik koordinat pusat dan radius presensi (berlaku untuk seluruh unit institusi yayasan)</p>
+                <h2 class="text-sm font-semibold text-slate-900">Kebijakan Lokasi &amp; Jam Presensi</h2>
+                <p class="text-xs text-slate-400 mt-0.5">Penetapan batas jam kerja dan opsi penyeragaman koordinat institusi</p>
             </div>
 
-            <!-- Unified GPS & Radius Configuration -->
-            @php
-                $sampleInst = $institutions->first();
-            @endphp
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2 border-t border-slate-100 text-xs">
-                <div>
-                    <div class="flex items-center justify-between mb-1.5">
-                        <label class="block font-medium text-slate-700">Titik Latitude Pusat</label>
-                    </div>
-                    <input 
-                        type="text" 
-                        id="unified_latitude"
-                        name="unified_latitude" 
-                        value="{{ old('unified_latitude', $sampleInst->latitude ?? '3.488300') }}" 
-                        required
-                        placeholder="Contoh: 3.488300"
-                        class="w-full px-3 py-1.5 bg-slate-50/60 border border-slate-200 rounded-lg text-slate-800 font-mono focus:outline-none focus:ring-2 focus:ring-blue-600"
-                    >
-                    <span class="text-[11px] text-slate-400 mt-1 block">Angka pertama di Google Maps (Garis Lintang)</span>
-                </div>
-
-                <div>
-                    <div class="flex items-center justify-between mb-1.5">
-                        <label class="block font-medium text-slate-700">Titik Longitude Pusat</label>
-                    </div>
-                    <input 
-                        type="text" 
-                        id="unified_longitude"
-                        name="unified_longitude" 
-                        value="{{ old('unified_longitude', $sampleInst->longitude ?? '97.808500') }}" 
-                        required
-                        placeholder="Contoh: 97.808500"
-                        class="w-full px-3 py-1.5 bg-slate-50/60 border border-slate-200 rounded-lg text-slate-800 font-mono focus:outline-none focus:ring-2 focus:ring-blue-600"
-                    >
-                    <span class="text-[11px] text-slate-400 mt-1 block">Angka kedua di Google Maps (Garis Bujur)</span>
-                </div>
-
-                <div>
-                    <label class="block font-medium text-slate-700 mb-1.5">Radius Presensi (Meter)</label>
-                    <div class="relative">
-                        <input 
-                            type="number" 
-                            name="unified_radius_meters" 
-                            value="{{ old('unified_radius_meters', $sampleInst->radius_meters ?? 100) }}" 
-                            min="10" 
-                            max="5000"
-                            required
-                            placeholder="100"
-                            class="w-full px-3 py-1.5 pr-14 bg-slate-50/60 border border-slate-200 rounded-lg text-slate-800 font-mono focus:outline-none focus:ring-2 focus:ring-blue-600"
-                        >
-                        <span class="absolute inset-y-0 right-0 flex items-center pr-3 text-[11px] text-slate-400 font-medium pointer-events-none">
-                            Meter
-                        </span>
-                    </div>
-                    <span class="text-[11px] text-slate-400 mt-1 block">Rekomendasi kampus terpadu: 100 - 250 Meter</span>
-                </div>
-            </div>
-
-            <div class="p-3 bg-blue-50/60 border border-blue-100 rounded-lg flex items-start gap-2.5">
+            <div class="p-3 bg-blue-50/70 border border-blue-100 rounded-lg flex items-start gap-2.5">
                 <svg class="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
                 </svg>
-                <div class="text-[11px] text-blue-800">
-                    <span class="font-semibold">Satu Titik Lokasi Bersama:</span> Karena STKIP Usman Safri, Pesantren Thawalib, dan SMK Swasta Anak Bangsa berada dalam satu kompleks/wilayah, titik koordinat dan batas radius di atas otomatis disinkronkan ke seluruh 3 institusi tersebut.
+                <div class="text-[11px] text-blue-800 leading-relaxed">
+                    <span class="font-semibold">Lokasi Absen Mandiri per Institusi:</span> Saat ini sistem mendukung lokasi GPS &amp; radius yang berbeda untuk masing-masing unit (STKIP, Pesantren Thawalib, SMK Anak Bangsa, dan SMP Thawalib). Anda dapat mengatur titik tiap unit di menu <a href="{{ route('admin.institusi') }}" class="font-semibold underline hover:text-blue-900">Unit Institusi</a> atau Dashboard.
                 </div>
             </div>
 
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs pt-3 border-t border-slate-100">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs pt-2 border-t border-slate-100">
                 <div>
                     <label class="block font-medium text-slate-700 mb-1.5">Batas Jam Alpa Otomatis</label>
                     <input type="time" name="auto_alpha_cutoff" value="{{ $settings['auto_alpha_cutoff'] ?? '12:00' }}" class="w-full px-3 py-1.5 bg-slate-50/60 border border-slate-200 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-600 font-mono">

@@ -152,14 +152,14 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                     </svg>
-                    <span>Lokasi Presensi &amp; Radius GPS Wilayah Yayasan</span>
+                    <span>Pengaturan Titik GPS &amp; Radius Absen</span>
                 </h2>
                 <p class="text-xs text-slate-500 mt-0.5">
-                    Tentukan satu titik koordinat pusat dan toleransi radius (berlaku serentak untuk STKIP, Pesantren Thawalib, dan SMK Anak Bangsa)
+                    Atur titik koordinat dan toleransi radius masing-masing unit institusi atau terapkan serentak
                 </p>
             </div>
             <span class="text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-full self-start sm:self-auto">
-                1 Titik Wilayah Aktif
+                {{ $rawInstitutions->count() }} Unit Institusi
             </span>
         </div>
 
@@ -167,36 +167,61 @@
             $sampleInst = $rawInstitutions->first();
         @endphp
 
-        <form method="POST" action="{{ route('admin.dashboard.locations') }}" class="space-y-4">
+        <form method="POST" action="{{ route('admin.dashboard.locations') }}" class="space-y-4" id="formGpsLocation">
             @csrf
+
+            <!-- Pilihan Target Institusi -->
+            <div>
+                <label class="block text-[11px] font-semibold text-slate-700 mb-1">Target Institusi</label>
+                <select 
+                    name="institution_id" 
+                    id="selectInstitution"
+                    class="w-full sm:w-1/2 px-3 py-2 bg-slate-50/70 border border-slate-200 rounded-lg text-slate-800 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-blue-600"
+                    onchange="handleInstitutionChange(this)"
+                >
+                    <option value="">-- Terapkan Serentak ke Seluruh Unit --</option>
+                    @foreach ($rawInstitutions as $inst)
+                        <option 
+                            value="{{ $inst->id }}" 
+                            data-lat="{{ $inst->latitude }}" 
+                            data-lng="{{ $inst->longitude }}" 
+                            data-rad="{{ $inst->radius_meters }}">
+                            {{ $inst->name }} ({{ $inst->code }})
+                        </option>
+                    @endforeach
+                </select>
+                <span class="text-[10px] text-slate-400 mt-1 block">Pilih institusi tertentu untuk mengatur lokasi spesifiknya, atau pilih serentak untuk menyamakan semua unit.</span>
+            </div>
 
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
                 <!-- Latitude -->
                 <div>
-                    <label class="block text-[11px] font-semibold text-slate-700 mb-1">Titik Latitude Pusat</label>
+                    <label class="block text-[11px] font-semibold text-slate-700 mb-1">Titik Latitude</label>
                     <input 
                         type="text" 
                         name="latitude" 
+                        id="inputLatitude"
                         value="{{ old('latitude', $sampleInst->latitude ?? '3.488300') }}" 
                         required
                         placeholder="Contoh: 3.488300"
                         class="w-full px-3 py-2 bg-slate-50/70 border border-slate-200 rounded-lg text-slate-800 font-mono text-xs focus:outline-none focus:ring-2 focus:ring-blue-600"
                     >
-                    <span class="text-[10px] text-slate-400 mt-1 block">Garis lintang lokasi kompleks yayasan</span>
+                    <span class="text-[10px] text-slate-400 mt-1 block">Garis lintang lokasi unit</span>
                 </div>
 
                 <!-- Longitude -->
                 <div>
-                    <label class="block text-[11px] font-semibold text-slate-700 mb-1">Titik Longitude Pusat</label>
+                    <label class="block text-[11px] font-semibold text-slate-700 mb-1">Titik Longitude</label>
                     <input 
                         type="text" 
                         name="longitude" 
+                        id="inputLongitude"
                         value="{{ old('longitude', $sampleInst->longitude ?? '97.808500') }}" 
                         required
                         placeholder="Contoh: 97.808500"
                         class="w-full px-3 py-2 bg-slate-50/70 border border-slate-200 rounded-lg text-slate-800 font-mono text-xs focus:outline-none focus:ring-2 focus:ring-blue-600"
                     >
-                    <span class="text-[10px] text-slate-400 mt-1 block">Garis bujur lokasi kompleks yayasan</span>
+                    <span class="text-[10px] text-slate-400 mt-1 block">Garis bujur lokasi unit</span>
                 </div>
 
                 <!-- Radius Meters -->
@@ -208,6 +233,7 @@
                         <input 
                             type="number" 
                             name="radius_meters" 
+                            id="inputRadius"
                             value="{{ old('radius_meters', $sampleInst->radius_meters ?? 100) }}" 
                             min="10" 
                             max="5000"
@@ -223,19 +249,34 @@
                 </div>
             </div>
 
-            <div class="p-3 bg-slate-50 border border-slate-200/80 rounded-lg flex items-center justify-between text-xs text-slate-600">
+            <div class="p-3 bg-slate-50 border border-slate-200/80 rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-slate-600">
                 <div class="flex items-center gap-2">
                     <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
-                    <span>Wilayah terhubung: <strong>STKIP Usman Safri</strong>, <strong>Pesantren Thawalib</strong>, <strong>SMK Swasta Anak Bangsa</strong></span>
+                    <span id="targetLabel">Mode: <strong>Terapkan Serentak Seluruh Institusi</strong></span>
                 </div>
                 <button 
                     type="submit" 
-                    class="py-2 px-5 rounded-lg bg-blue-600 hover:bg-blue-700 active:scale-[0.99] text-white text-xs font-semibold shadow-sm transition flex items-center gap-2">
+                    class="py-2 px-5 rounded-lg bg-blue-600 hover:bg-blue-700 active:scale-[0.99] text-white text-xs font-semibold shadow-sm transition flex items-center justify-center gap-2">
                     <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
                     <span>Simpan Titik &amp; Radius</span>
                 </button>
             </div>
         </form>
+
+        <script>
+            function handleInstitutionChange(select) {
+                const opt = select.options[select.selectedIndex];
+                const targetLabel = document.getElementById('targetLabel');
+                if (opt.value) {
+                    if (opt.dataset.lat) document.getElementById('inputLatitude').value = opt.dataset.lat;
+                    if (opt.dataset.lng) document.getElementById('inputLongitude').value = opt.dataset.lng;
+                    if (opt.dataset.rad) document.getElementById('inputRadius').value = opt.dataset.rad;
+                    targetLabel.innerHTML = 'Mode: Khusus <strong>' + opt.text + '</strong>';
+                } else {
+                    targetLabel.innerHTML = 'Mode: <strong>Terapkan Serentak Seluruh Institusi</strong>';
+                }
+            }
+        </script>
     </div>
 
     <!-- Aktivitas Presensi Terbaru (Clean Minimal Table) -->

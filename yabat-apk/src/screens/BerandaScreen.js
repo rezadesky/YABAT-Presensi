@@ -154,14 +154,32 @@ export default function BerandaScreen({ navigation }) {
             </View>
           </View>
 
-          {/* Quick Link CTA ke Tab Presensi */}
+          {/* Tombol Cepat Menuju Halaman Absen (Mencolok & Ramah Orang Tua) */}
           <TouchableOpacity
-            style={styles.ctaButton}
+            style={styles.ctaButtonLarge}
             onPress={() => navigation.navigate('Presensi')}
             activeOpacity={0.85}
           >
-            <Ionicons name="location-outline" size={16} color="#93c5fd" />
-            <Text style={styles.ctaButtonText}>Buka Halaman Presensi GPS</Text>
+            <View style={styles.ctaIconCircle}>
+              <Ionicons name="finger-print" size={26} color="#ffffff" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.ctaButtonLargeTitle}>
+                {!todayAttendance?.time_in 
+                  ? 'ABSEN MASUK SEKARANG' 
+                  : !todayAttendance?.time_out 
+                    ? 'ABSEN PULANG SEKARANG' 
+                    : 'LIHAT STATUS PRESENSI'}
+              </Text>
+              <Text style={styles.ctaButtonLargeSub}>
+                {!todayAttendance?.time_in 
+                  ? 'Tekan di sini untuk absen masuk kerja' 
+                  : !todayAttendance?.time_out 
+                    ? 'Tekan di sini jika jam kerja telah usai' 
+                    : 'Absensi hari ini telah lengkap'}
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward-circle" size={24} color="#ffffff" />
           </TouchableOpacity>
         </View>
 
@@ -375,19 +393,39 @@ const styles = StyleSheet.create({
     fontSize: 9.5,
     color: '#94a3b8',
   },
-  ctaButton: {
-    backgroundColor: '#2563eb',
-    borderRadius: 12,
-    paddingVertical: 11,
+  ctaButtonLarge: {
+    backgroundColor: '#059669', // Hijau Tegas & Ramah
+    borderRadius: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
+    gap: 12,
+    shadowColor: '#059669',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4,
   },
-  ctaButtonText: {
+  ctaIconCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ctaButtonLargeTitle: {
     color: '#ffffff',
-    fontSize: 12,
-    fontWeight: '700',
+    fontSize: 14,
+    fontWeight: '800',
+    letterSpacing: 0.3,
+  },
+  ctaButtonLargeSub: {
+    color: 'rgba(255, 255, 255, 0.9)',
+    fontSize: 10.5,
+    marginTop: 2,
+    fontWeight: '500',
   },
   scheduleName: {
     fontSize: 12,

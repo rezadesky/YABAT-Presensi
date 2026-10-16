@@ -97,21 +97,33 @@ class DashboardController extends Controller
         ));
     }
 
-    // Update Lokasi Absen (Latitude, Longitude, Radius) dari Dashboard (1 Titik Bersama untuk seluruh institusi)
+    // Update Lokasi Absen (Latitude, Longitude, Radius) dari Dashboard
     public function updateLocations(Request $request)
     {
         $validated = $request->validate([
+            'institution_id' => 'nullable|exists:institutions,id',
             'latitude' => 'required|numeric',
             'longitude' => 'required|numeric',
             'radius_meters' => 'required|integer|min:10|max:5000',
         ]);
 
-        Institution::query()->update([
-            'latitude' => $validated['latitude'],
-            'longitude' => $validated['longitude'],
-            'radius_meters' => $validated['radius_meters'],
-        ]);
+        if (!empty($validated['institution_id'])) {
+            $inst = Institution::findOrFail($validated['institution_id']);
+            $inst->update([
+                'latitude' => $validated['latitude'],
+                'longitude' => $validated['longitude'],
+                'radius_meters' => $validated['radius_meters'],
+            ]);
+            $msg = "Titik lokasi GPS & radius untuk {$inst->name} berhasil diperbarui.";
+        } else {
+            Institution::query()->update([
+                'latitude' => $validated['latitude'],
+                'longitude' => $validated['longitude'],
+                'radius_meters' => $validated['radius_meters'],
+            ]);
+            $msg = 'Titik lokasi GPS wilayah dan batas radius berhasil diperbarui untuk seluruh unit institusi.';
+        }
 
-        return redirect()->route('admin.dashboard')->with('success', 'Titik lokasi GPS wilayah dan batas radius berhasil diperbarui untuk seluruh 3 unit institusi.');
+        return redirect()->route('admin.dashboard')->with('success', $msg);
     }
 }

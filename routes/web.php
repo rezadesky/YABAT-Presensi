@@ -73,8 +73,11 @@ Route::middleware('auth')->group(function () {
     Route::put('/pegawai/{id}', [EmployeeController::class, 'update'])->name('pegawai.update');
     Route::delete('/pegawai/{id}', [EmployeeController::class, 'destroy'])->name('pegawai.destroy');
 
-    // 3. Institusi Unit (Read-only daftar unit tetap yayasan)
+    // 3. Institusi Unit (Daftar unit yayasan & pengaturan lokasi GPS per institusi)
     Route::get('/institusi', [InstitutionController::class, 'index'])->name('institusi');
+    Route::post('/institusi', [InstitutionController::class, 'store'])->name('institusi.store');
+    Route::put('/institusi/{id}', [InstitutionController::class, 'update'])->name('institusi.update');
+    Route::delete('/institusi/{id}', [InstitutionController::class, 'destroy'])->name('institusi.destroy');
 
     // 4. Jadwal Kerja CRUD
     Route::get('/jadwal', [WorkScheduleController::class, 'index'])->name('jadwal');
